@@ -2507,14 +2507,13 @@
                   '<input type="checkbox" name="uirecorder-shortcuts-active">' +
                   modifierHTML + shortcutHTML +
                   ' <select name="todo">' +
-                    '<option value="hover">' + __('button_hover_on_text') +'</option> ' +
-                    '<option value="hover-continue">' + __('button_hover_on_text') + '_continue' + '</option> ' +
-                    '<option value="expect">' + __('button_expect_text') +'</option> ' +
-                    '<option value="user_vars">' + __('button_vars_text') +'</option> ' +
-                    '<option value="jscode">' + __('button_jscode_text') +'</option> ' +
-                    '<option value="sleep" selected>' + __('button_sleep_text') +'</option> ' +
-                    '<option value="jump">' + __('button_jump_text') +'</option> ' +
-                    '<option value="end">' + __('button_end_text') +'</option> ' +
+                    '<option value="uirecorder-hover">' + __('button_hover_on_text')+'</option> ' +
+                    '<option value="uirecorder-expect">' + __('button_expect_text') +'</option> ' +
+                    '<option value="uirecorder-vars">' + __('button_vars_text') +'</option> ' +
+                    '<option value="uirecorder-jscode">' + __('button_jscode_text') +'</option> ' +
+                    '<option value="uirecorder-sleep" selected>' + __('button_sleep_text') +'</option> ' +
+                    '<option value="uirecorder-jump">' + __('button_jump_text') +'</option> ' +
+                    '<option value="urrecorder-end">' + __('button_end_text') +'</option> ' +
                     '</select>' +
                     '<span name="options"> </span>' +
                     '<span name="status"> </span>';
@@ -2621,22 +2620,19 @@
                 if (target.name === 'todo') {
                   var value = this.value
                   switch (value) {
-                    case 'hover':
+                    case 'uirecorder-hover':
                       options.innerHTML = '';
                       break;
-                    case 'hover-continue':
+                    case 'uirecorder-expect':
                       options.innerHTML = '';
                       break;
-                    case 'expect':
+                    case 'uirecorder-vars':
                       options.innerHTML = '';
                       break;
-                    case 'user_vars':
+                    case 'uirecorder-jscode':
                       options.innerHTML = '';
                       break;
-                    case 'jscode':
-                      options.innerHTML = '';
-                      break;
-                    case 'sleep':
+                    case 'uirecorder-sleep':
                       options.innerHTML = '<span> Time: </span> <input type="text" name="sleep-time" value="100"> ms';
                       var sleeptime = options.querySelector('input[type="text"]')
                       sleeptime.onchange = function (event) {
@@ -2644,10 +2640,10 @@
                         changeShortcut({'target':event.target.parentNode});
                       }
                       break;
-                    case 'jump':
+                    case 'uirecorder-jump':
                       options.innerHTML = '';
                       break;
-                    case 'end':
+                    case 'uirecorder-end':
                       options.innerHTML = '';
                       break;
                   }
@@ -2676,9 +2672,46 @@
                   (event.metaKey  ? 'meta+'  : '') +
                   event.code.slice(3,).toLowerCase();
                 if (shortcutNameList.includes(shortcutName)) {
+                  event.stopPropagation();
+                  event.preventDefault();
                   var shortcut = shortcutDict[shortcutName]
                   var li = shortcut.el.parentNode;
                   var status = li.querySelector('span[name="status"]');
+                  var todo = shortcut.todo;
+                  var button = document.getElementById('uirecorder-tools-pannel').
+                                        querySelector('a[name="' + shortcut.todo + '"]')
+                  switch (shortcut.todo) {
+                    case 'uirecorder-hover':
+                      button.click()
+                      break;
+                    case 'uirecorder-expect':
+                      button.click()
+                      break;
+                    case 'uirecorder-vars':
+                      button.click()
+                      break;
+                    case 'uirecorder-jscode':
+                      button.click()
+                      break;
+                    case 'uirecorder-sleep':
+                      if (shortcut.options['sleep-time']) {
+                        var time = shortcut.options['sleep-time'];
+                        if(/\d+/.test(time)){
+                          saveCommand('sleep', time);
+                        } else {
+                          alert('dialog_sleep_time_tip');
+                        }
+                      } else {
+                        button.click()
+                      }
+                      break;
+                    case 'uirecorder-jump':
+                      button.click()
+                      break;
+                    case 'uirecorder-end':
+                      button.click()
+                      break;
+                  }
                   (function() {
                     status.innerText =
                       'press count: [' + String(++(shortcut.count)) + ']';

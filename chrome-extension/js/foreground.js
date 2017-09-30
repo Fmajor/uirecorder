@@ -29,6 +29,8 @@
     var reClassValueBlack = /^$/;
     var hideBeforeExpect = '';
     var specLists = [];
+    var shortcutDict = {};
+    var shortcutNameList = [];
 
     // i18n
     var i18n = {};
@@ -71,7 +73,6 @@
 
     // load config
     function updateConfig(config){
-        console.log(config);
         pkgVersion = config.version;
         if(config.testVars){
             testVars = config.testVars;
@@ -1725,6 +1726,7 @@
                 '<div style="padding:5px;color:#666;font-size:16px;"><strong>DomPath: </strong><span id="uirecorder-path"></span></div>',
                 '<div style="padding:5px;color:#999;font-size:10px;">'+__('attr_switch')+'<span id="uirecorder-attrs"><span class="on">data-id</span></span></div>',
                 '<div style="padding:5px;color:#999;font-size:10px;">'+__('attr_black')+'<input id="uirecorder-attrblack" value="'+strAttrValueBlack+'" placeholder="'+__('attr_black_tip')+'" size="72" style="border:1px solid #ccc;padding:3px;background:#f1f1f1" /></div>',
+                '<div style="padding:4px;color:#999;font-size:10px;">'+'Shortcuts: <span class="uirecorder-button"> <a style="padding:1px;" name="uirecorder-shortcuts-add">+</a></span> <span class="uirecorder-button"> <a style="padding:1px;" id="uirecorder-shortcuts-show" name="uirecorder-shortcuts-show">Fold</a></span><ol id="uirecorder-shortcuts-list"></ol>'+'</div>',
                 '<div><span class="uirecorder-button"><a name="uirecorder-hover"><img src="'+baseUrl+'img/hover.png" alt="">'+__('button_hover_on_text')+'</a></span><span class="uirecorder-button"><a name="uirecorder-expect"><img src="'+baseUrl+'img/expect.png" alt="">'+__('button_expect_text')+'</a></span><span class="uirecorder-button"><a name="uirecorder-vars"><img src="'+baseUrl+'img/vars.png" alt="">'+__('button_vars_text')+'</a></span><span class="uirecorder-button"><a name="uirecorder-jscode"><img src="'+baseUrl+'img/jscode.png" alt="">'+__('button_jscode_text')+'</a></span><span class="uirecorder-button"><a name="uirecorder-sleep"><img src="'+baseUrl+'img/sleep.png" alt="">'+__('button_sleep_text')+'</a></span><span class="uirecorder-button"><a name="uirecorder-jump"><img src="'+baseUrl+'img/jump.png" alt="">'+__('button_jump_text')+'</a></span><span class="uirecorder-button"><a name="uirecorder-end"><img src="'+baseUrl+'img/end.png" alt="">'+__('button_end_text')+'</a></span></div>',
                 '<span id="uirecorder-version">UIRecorder v'+pkgVersion+'</span>',
                 '<style>#uirecorder-tools-pannel{position:fixed;z-index:2147483647;padding:20px;width:850px;box-sizing:border-box;border:1px solid #ccc;line-height:1;background:rgba(241,241,241,0.9);box-shadow: 5px 5px 10px #888888;bottom:10px;left:10px;cursor:move;text-align:left;}#uirecorder-path{border-bottom: dashed 1px #ccc;padding:2px;color:#FF7159;font-size:12px;}.uirecorder-button{cursor:pointer;margin: 5px;}.uirecorder-button a{text-decoration: none;color:#333333;font-family: arial, sans-serif;font-size: 12px;color: #777;text-shadow: 1px 1px 0px white;background: -webkit-linear-gradient(top, #ffffff 0%,#dfdfdf 100%);border-radius: 3px;box-shadow: 0 1px 3px 0px rgba(0,0,0,0.4);padding: 5px 7px;}.uirecorder-button a:hover{background: -webkit-linear-gradient(top, #ffffff 0%,#eee 100%);box-shadow: 0 1px 3px 0px rgba(0,0,0,0.4);}.uirecorder-button a:active{background: -webkit-linear-gradient(top, #dfdfdf 0%,#f1f1f1 100%);box-shadow: 0px 1px 1px 1px rgba(0,0,0,0.2) inset, 0px 1px 1px 0 rgba(255,255,255,1);}.uirecorder-button a img{display:inline-block;padding-right: 8px;position: relative;top: 2px;vertical-align:baseline;width:auto;height:auto;}#uirecorder-attrs span{text-align: center; border-radius:4px;padding:3px 5px;font-size:12px;text-decoration: none;margin:0px 3px;display: inline-block;cursor: pointer;}#uirecorder-attrs span.on{color:#777;background-color:#f3f3f3;box-shadow: 0 1px 3px 0px rgba(0,0,0,0.3);}#uirecorder-attrs span.off{color:#bbb;background-color: #eee;box-shadow: 0 1px 3px 0px rgba(0,0,0,0.2);}#uirecorder-version{position:absolute;top:10px;right:10px;color:#999;font-size:12px;}</style>'
@@ -1769,18 +1771,23 @@
             divDomToolsPannel.addEventListener('mouseup', onMouseUp);
             divDomToolsPannel.addEventListener('touchend', onMouseUp);
             divDomToolsPannel.addEventListener('click', function(event){
-                event.stopPropagation();
-                event.preventDefault();
                 var ctrlKey = event.metaKey || event.ctrlKey
                 var target = event.target;
                 var parentNode = target.parentNode;
+                if (target.name && target.name === 'uirecorder-shortcuts-active') {
+                  // do not preventDefault
+                  return
+                }
+                event.stopPropagation();
+                event.preventDefault();
                 if(parentNode && parentNode.id === 'uirecorder-attrs'){
                     GlobalEvents.emit('updatePathAttr', {
                         name: target.textContent,
                         on: !(target.className === 'on')
                     });
-                }
-                else{
+                } else if (target.name && target.name === 'uirecorder-shortcuts-delete') {
+                  deleteShortcut(target)
+                } else {
                     if(target.tagName === 'IMG'){
                         target = parentNode;
                     }
@@ -1881,6 +1888,12 @@
                             chrome.runtime.sendMessage({
                                 type: 'save'
                             });
+                            break;
+                        case 'uirecorder-shortcuts-add':
+                            addShortcut()
+                            break;
+                        case 'uirecorder-shortcuts-show':
+                            showShortcut()
                             break;
                     }
                 }
@@ -2444,6 +2457,246 @@
                     }
                 });
             }
+
+            function showShortcut(){
+                var shortcutDiv = document.getElementById('uirecorder-shortcuts-list');
+                var show = document.getElementById('uirecorder-shortcuts-show')
+                if (shortcutDiv.style.display === 'none') {
+                  shortcutDiv.style.display = 'block'
+                  show.text = "Fold"
+                } else {
+                  shortcutDiv.style.display = 'none'
+                  show.text = "Show"
+                }
+            }
+
+            function addShortcut(){
+                var shortcutDiv = document.getElementById('uirecorder-shortcuts-list');
+                var li = document.createElement('li');
+                shortcutDiv.appendChild(li);
+                li.style.padding = '5px';
+                var modifierHTML =
+                  '<select name="modifier">' +
+                  '<option value="">' + '' +'</option> ' +
+                  '<option value="ctrl" selected>' + 'Ctrl' +'</option> ' +
+                  '<option value="shift">' + 'Shift' +'</option> ' +
+                  '<option value="alt">' + 'Alt' +'</option> ' +
+                  '<option value="meta">' + 'Meta' +'</option> ' +
+                  '<option value="ctrl+alt">' + 'Ctrl+Alt' +'</option> ' +
+                  '<option value="ctrl+shift">' + 'Ctrl+Shift' +'</option> ' +
+                  '<option value="ctrl+meta">' + 'Ctrl+Meta' +'</option> ' +
+                  '<option value="alt+shift">' + 'Alt+Shift' +'</option> ' +
+                  '<option value="alt+meta">' + 'Alt+Meta' +'</option> ' +
+                  '<option value="shift+meta">' + 'Shift+Meta' +'</option> ' +
+                  '<option value="ctrl+alt+shift">' + 'Ctrl+Alt+Shift' +'</option> ' +
+                  '<option value="ctrl+alt+meta">' + 'Ctrl+Alt+Meta' +'</option> ' +
+                  '<option value="shift+alt+meta">' + 'Shift+Alt+Meta' +'</option> ' +
+                  '<option value="ctrl+shift+alt+meta">' + 'Ctrl+Shift+Alt+Meta' +'</option> ' +
+                  '</select>' ;
+                var normalKeyArray = 'abcdefghijklmnopqrstuvwxyz1234567890'.split('')
+                var normalKeySelectArray = []
+                normalKeyArray.forEach(function (eachItem) {
+                  normalKeySelectArray.push(
+                    '<option value="' + eachItem + '">' + eachItem +'</option> '
+                  )
+                })
+                var shortcutHTML =
+                  '<select name="key">' + normalKeySelectArray.join() + '</select>' ;
+                li.innerHTML =
+                  '<span class="uirecorder-button uirecorder-delete-shortcuts"> <a style="padding:1px;" name="uirecorder-shortcuts-delete">x</a></span>' +
+                  '<input type="checkbox" name="uirecorder-shortcuts-active">' +
+                  modifierHTML + shortcutHTML +
+                  ' <select name="todo">' +
+                    '<option value="hover">' + __('button_hover_on_text') +'</option> ' +
+                    '<option value="hover-continue">' + __('button_hover_on_text') + '_continue' + '</option> ' +
+                    '<option value="expect">' + __('button_expect_text') +'</option> ' +
+                    '<option value="user_vars">' + __('button_vars_text') +'</option> ' +
+                    '<option value="jscode">' + __('button_jscode_text') +'</option> ' +
+                    '<option value="sleep" selected>' + __('button_sleep_text') +'</option> ' +
+                    '<option value="jump">' + __('button_jump_text') +'</option> ' +
+                    '<option value="end">' + __('button_end_text') +'</option> ' +
+                    '</select>' +
+                    '<span name="options"> </span>' +
+                    '<span name="status"> </span>';
+                var modifier = li.querySelector('select[name="modifier"]');
+                var key = li.querySelector('select[name="key"]');
+                var todo = li.querySelector('select[name="todo"]');
+                var enable = li.querySelector('input[type="checkbox"]');
+                var options = li.querySelector('span[name="options"]');
+                var status = li.querySelector('span[name="status"]');
+                todo.onchange = changeShortcut;
+                todo.onchange({'target':todo});
+                enable.onchange = changeShortcut;
+                modifier.onchange = changeShortcut;
+                key.onchange = changeShortcut;
+            }
+
+            function changeShortcut(event) {
+              // target should be the child of li
+              var target = event.target;
+              var li = target.parentNode;
+              var modifier = li.querySelector('select[name="modifier"]');
+              var key = li.querySelector('select[name="key"]');
+              var todo = li.querySelector('select[name="todo"]');
+              var enable = li.querySelector('input[type="checkbox"]');
+              var options = li.querySelector('span[name="options"]');
+              var status = li.querySelector('span[name="status"]');
+              if (target.name === 'uirecorder-shortcuts-active') {
+                var thisShortcut = {};
+                thisShortcut.key = key.value;
+                thisShortcut.todo = todo.value;
+                thisShortcut.modifier = modifier.value;
+                thisShortcut.el = target
+                thisShortcut.count = 0
+                var shortcutName = (modifier.value? modifier.value + '+' : '')+ key.value;
+                if (Object.keys(shortcutDict).includes(shortcutName)) {
+                  if (shortcutDict[shortcutName].el !== target) {
+                    this.checked = false;
+                    (function() {
+                      status.innerText = "Duplicated key, unable to set";
+                      status.style.color = "red";
+                      status.style.display = 'inline';
+                      status.style.padding = '3px';
+                      setTimeout(function() {
+                        status.style.display = 'none';
+                      }, 9000)
+                    })();
+                    return;
+                  }
+                }
+                if (target.checked) { // 激活快捷键
+                  var allParameters = {};
+                  options.childNodes.forEach(function (eachItem) {
+                      if (['INPUT', 'SELECT'].includes(eachItem.tagName)) {
+                        allParameters[eachItem.name] = eachItem.value
+                      }
+                  });
+                  // 测试重复的快捷键
+                  thisShortcut.options = allParameters;
+                  shortcutDict[shortcutName] = thisShortcut;
+                  (function() {
+                    status.innerText = "actived";
+                    status.style.color = "green";
+                    status.style.display = 'inline';
+                    status.style.padding = '3px';
+                    setTimeout(function() {
+                      status.style.display = 'none';
+                    }, 9000)
+                  })();
+                } else { // 禁止快捷键
+                  delete shortcutDict[shortcutName];
+                  (function() {
+                    status.innerText = "deactived";
+                    status.style.color = "red";
+                    status.style.display = 'inline';
+                    status.style.padding = '3px';
+                    setTimeout(function() {
+                      status.style.display = 'none';
+                    }, 9000)
+                  })();
+                }
+                if (Object.keys(shortcutDict).length) {
+                  bindShortcut();
+                } else {
+                  unbindShortcut();
+                }
+              } else { // 快捷键的配置被更改
+                enable.checked = false;
+                if (Object.keys(shortcutDict).length) {
+                  Object.keys(shortcutDict).forEach(function (eachKey) {
+                    if (shortcutDict[eachKey].el === enable) {
+                      delete shortcutDict[eachKey];
+                    }
+                  })
+                }
+                (function() {
+                  status.innerText = "changed, need reactive";
+                  status.style.color = "black";
+                  status.style.display = 'inline';
+                  status.style.padding = '3px';
+                  setTimeout(function() {
+                    status.style.display = 'none';
+                  }, 9000)
+                })();
+                if (target.name === 'todo') {
+                  var value = this.value
+                  switch (value) {
+                    case 'hover':
+                      options.innerHTML = '';
+                      break;
+                    case 'hover-continue':
+                      options.innerHTML = '';
+                      break;
+                    case 'expect':
+                      options.innerHTML = '';
+                      break;
+                    case 'user_vars':
+                      options.innerHTML = '';
+                      break;
+                    case 'jscode':
+                      options.innerHTML = '';
+                      break;
+                    case 'sleep':
+                      options.innerHTML = '<span> Time: </span> <input type="text" name="sleep-time" value="100"> ms';
+                      var sleeptime = options.querySelector('input[type="text"]')
+                      sleeptime.onchange = function (event) {
+                        // can be anything that is child of li
+                        changeShortcut({'target':event.target.parentNode});
+                      }
+                      break;
+                    case 'jump':
+                      options.innerHTML = '';
+                      break;
+                    case 'end':
+                      options.innerHTML = '';
+                      break;
+                  }
+                }
+              }
+            }
+
+            function deleteShortcut (target) {
+              var li = target.parentNode.parentNode;
+              var ol = li.parentNode;
+              ol.removeChild(li);
+              var modifier = li.querySelector('select[name="modifier"]');
+              var key = li.querySelector('select[name="key"]');
+              var shortcutName = (modifier.value ? modifier.value + '+' : '') + key.value;
+              delete shortcutDict[shortcutName]
+              bindShortcut()
+            }
+
+            function bindShortcut () {
+              shortcutNameList = Object.keys(shortcutDict)
+              document.onkeypress = function (event) {
+                var shortcutName =
+                  (event.ctrlKey  ? 'ctrl+'  : '') +
+                  (event.altKey   ? 'alt+'   : '') +
+                  (event.shiftKey ? 'shift+' : '') +
+                  (event.metaKey  ? 'meta+'  : '') +
+                  event.code.slice(3,).toLowerCase();
+                if (shortcutNameList.includes(shortcutName)) {
+                  var shortcut = shortcutDict[shortcutName]
+                  var li = shortcut.el.parentNode;
+                  var status = li.querySelector('span[name="status"]');
+                  (function() {
+                    status.innerText =
+                      'press count: [' + String(++(shortcut.count)) + ']';
+                    status.style.color = "green";
+                    status.style.display = 'inline';
+                    status.style.padding = '3px';
+                    setTimeout(function() {
+                      status.style.display = 'none';
+                    }, 9000)
+                  })();
+                }
+              }
+            }
+
+            function unbindShortcut () {
+              document.onkeypress = null;
+            }
+
         }
 
         if(isIframe === false){

@@ -1471,6 +1471,20 @@
                     else if(stickModifierKey === 'CTRL'){
                         var typedCharacter = String.fromCharCode(keyCode);
                         if(/^[az]$/i.test(typedCharacter)){
+                            if (document.onkeypress) {
+                              var shortcutName =
+                              (event.ctrlKey  ? 'ctrl+'  : '') +
+                              (event.altKey   ? 'alt+'   : '') +
+                              (event.shiftKey ? 'shift+' : '') +
+                              (event.metaKey  ? 'meta+'  : '') +
+                              event.code.slice(3,).toLowerCase();
+                              if (shortcutNameList.includes(shortcutName)) {
+                                event.stopPropagation();
+                                event.preventDefault();
+                                document.onkeypress(event);
+                                return;
+                              }
+                            }
                             if(isModifierKeyRecord === false){
                                 isModifierKeyRecord = true;
                                 saveCommand('keyDown', {
@@ -1538,6 +1552,20 @@
         // catch keypress event
         document.addEventListener('keypress', function(event){
             var target = event.target;
+            if (document.onkeypress) {
+              var shortcutName =
+                (event.ctrlKey  ? 'ctrl+'  : '') +
+                (event.altKey   ? 'alt+'   : '') +
+                (event.shiftKey ? 'shift+' : '') +
+                (event.metaKey  ? 'meta+'  : '') +
+                event.code.slice(3,).toLowerCase();
+              if (shortcutNameList.includes(shortcutName)) {
+                event.stopPropagation();
+                event.preventDefault();
+                document.onkeypress(event);
+                return;
+              }
+            }
             if(isNotInToolsPannel(target) && /^(HTML|IFRAME)$/i.test(target.tagName) === false){
                 if(isRecording){
                     var typedCharacter = String.fromCharCode(event.keyCode);
